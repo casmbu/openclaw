@@ -2,6 +2,11 @@ import fs from "node:fs/promises";
 import type { ThinkLevel } from "../../auto-reply/thinking.js";
 import type { RunEmbeddedPiAgentParams } from "./run/params.js";
 import type { EmbeddedPiAgentMeta, EmbeddedPiRunResult } from "./types.js";
+import {
+  clearInProgressSentinel,
+  isAutoResumeEnabled,
+  writeInProgressSentinel,
+} from "../../infra/auto-resume.js";
 import { enqueueCommandInLane } from "../../process/command-queue.js";
 import { resolveUserPath } from "../../utils.js";
 import { isMarkdownCapableMessageChannel } from "../../utils/message-channel.js";
@@ -90,6 +95,21 @@ export async function runEmbeddedPiAgent(
   return enqueueSession(() =>
     enqueueGlobal(async () => {
       const started = Date.now();
+      // Auto-resume: write sentinel if enabled
+      const autoResumeEnabled = isAutoResumeEnabled(params.config);
+      const sessionKey = params.sessionKey;
+      if (autoResumeEnabled && sessionKey) {
+        const autoResumeState = {
+          sessionKey,
+          userPrompt: params.prompt?.substring(0, 200),
+          runId: params.runId,
+          timestamp: started,
+          wasStreaming: true, // Default to true for most interactive sessions
+          provider: params.provider,
+          model: params.model,
+        };
+        await writeInProgressSentinel(autoResumeState);
+      }
       const resolvedWorkspace = resolveUserPath(params.workspaceDir);
       const prevCwd = process.cwd();
 
@@ -685,6 +705,10 @@ export async function runEmbeddedPiAgent(
           };
         }
       } finally {
+        // Auto-resume: clear sentinel when run finishes
+        if (autoResumeEnabled && sessionKey) {
+          await clearInProgressSentinel(sessionKey);
+        }
         process.chdir(prevCwd);
       }
     }),

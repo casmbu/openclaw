@@ -22,6 +22,7 @@ import {
   scheduleRestartSentinelWake,
   shouldWakeFromRestartSentinel,
 } from "./server-restart-sentinel.js";
+import { scheduleAutoResumeWake } from "./server-auto-resume.js";
 
 export async function startGatewaySidecars(params: {
   cfg: ReturnType<typeof loadConfig>;
@@ -155,6 +156,11 @@ export async function startGatewaySidecars(params: {
       void scheduleRestartSentinelWake({ deps: params.deps });
     }, 750);
   }
+
+  // Auto-resume interrupted conversations (development/loop testing feature)
+  setTimeout(() => {
+    void scheduleAutoResumeWake({ deps: params.deps, cfg: params.cfg });
+  }, 1000);
 
   return { browserControl, pluginServices };
 }
