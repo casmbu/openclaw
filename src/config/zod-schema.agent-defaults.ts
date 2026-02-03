@@ -135,6 +135,30 @@ export const AgentDefaultsSchema = z
       .describe(
         "Auto-resume interrupted conversations after gateway restart (development/testing feature).",
       ),
+    naturalConversation: z
+      .object({
+        enabled: z
+          .boolean()
+          .optional()
+          .describe("Enable natural conversation mode (default: true)"),
+        classifierModel: z
+          .object({
+            primary: z
+              .string()
+              .optional()
+              .describe("Primary classifier model (e.g., 'ollama/qwen2.5-coder:1.5b' for cheaper classification)"),
+            fallbacks: z
+              .array(z.string())
+              .optional()
+              .describe("Fallback models if primary is unavailable"),
+          })
+          .strict()
+          .optional()
+          .describe("Model configuration for interrupt classification (defaults to primary model if not set)"),
+      })
+      .strict()
+      .optional()
+      .describe("Natural conversation flow - smart interrupt handling with LLM classification"),
     timeoutSeconds: z.number().int().positive().optional(),
     mediaMaxMb: z.number().positive().optional(),
     typingIntervalSeconds: z.number().int().positive().optional(),

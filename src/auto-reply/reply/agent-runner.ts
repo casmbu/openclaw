@@ -43,7 +43,6 @@ import { createReplyToModeFilterForChannel, resolveReplyToMode } from "./reply-t
 import { incrementCompactionCount } from "./session-updates.js";
 import { persistSessionUsageUpdate } from "./session-usage.js";
 import { createTypingSignaler } from "./typing-mode.js";
-import { checkAndClearInterrupt } from "../../interrupt/index.js";
 
 const BLOCK_REPLY_SEND_TIMEOUT_MS = 15_000;
 
@@ -201,22 +200,6 @@ export async function runReplyAgent(params: {
   }
 
   await typingSignals.signalRunStart();
-
-  // Register interrupt listener to check after terminal activity completes
-  // Triggers on: tool end, lifecycle end, compaction end (streams with phases)
-  const stopInterruptListener = sessionKey
-    ? onAgentEvent((evt) => {
-        // Only streams with phases have clear "end" points
-        if (evt.sessionKey !== sessionKey) return;
-        
-        const phase = evt.data?.phase;
-        const isTerminalPhase = phase === "end" || phase === "error";
-        
-        if (isTerminalPhase && checkAndClearInterrupt(sessionKey)) {
-          logVerbose(`[interrupt] Pausing session ${sessionKey} after ${evt.stream} ${phase}`);
-        }
-      })
-    : () => {}; // No-op if no session key
 
   activeSessionEntry = await runMemoryFlushIfNeeded({
     cfg,
@@ -540,7 +523,5 @@ export async function runReplyAgent(params: {
   } finally {
     blockReplyPipeline?.stop();
     typing.markRunComplete();
-    // Cleanup interrupt listener
-    stopInterruptListener();
   }
 }

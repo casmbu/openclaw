@@ -160,6 +160,18 @@ export type AgentDefaultsConfig = {
     /** Enable interrupt functionality (default: true). */
     enabled?: boolean;
   };
+  /** Natural conversation flow - smart interrupt handling with LLM classification. */
+  naturalConversation?: {
+    /** Enable natural conversation mode (default: true). Disable for traditional request/response. */
+    enabled?: boolean;
+    /** Model to use for interrupt classification (defaults to primary model if not set). */
+    classifierModel?: {
+      /** Primary classifier model (e.g., "ollama/qwen2.5-coder:1.5b" for cheaper classification). */
+      primary?: string;
+      /** Fallback models if primary is unavailable. */
+      fallbacks?: string[];
+    };
+  };
   /** Auto-resume interrupted conversations after gateway restart (development/testing feature). */
   autoResume?: boolean;
   timeoutSeconds?: number;
