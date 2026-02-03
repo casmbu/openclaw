@@ -1,18 +1,11 @@
-// Interrupt Service - Integrated pause mechanism for OpenClaw
-// Any message from any source triggers a pause (except self-messages, which are filtered upstream)
+// Interrupt Service - Simple pause mechanism for OpenClaw
+// Any message triggers a pause (self-messages filtered upstream by channels)
 
-// State management
 export {
   type InterruptStatus,
+  isInterruptEnabled,
+  signalInterrupt,
   checkInterrupt,
   clearInterrupt,
-  resetInterruptState,
-  getInterruptState,
+  checkAndClearInterrupt,
 } from "./state.js";
-
-// Signal and check functions
-export {
-  signalInterrupt,
-  checkInterruptAndPause,
-  isInterruptEnabled,
-} from "./signal.js";

@@ -43,7 +43,7 @@ import { createReplyToModeFilterForChannel, resolveReplyToMode } from "./reply-t
 import { incrementCompactionCount } from "./session-updates.js";
 import { persistSessionUsageUpdate } from "./session-usage.js";
 import { createTypingSignaler } from "./typing-mode.js";
-import { checkInterruptAndPause } from "../../interrupt/index.js";
+import { checkAndClearInterrupt } from "../../interrupt/index.js";
 
 const BLOCK_REPLY_SEND_TIMEOUT_MS = 15_000;
 
@@ -212,7 +212,7 @@ export async function runReplyAgent(params: {
         const phase = evt.data?.phase;
         const isTerminalPhase = phase === "end" || phase === "error";
         
-        if (isTerminalPhase && checkInterruptAndPause(sessionKey)) {
+        if (isTerminalPhase && checkAndClearInterrupt(sessionKey)) {
           logVerbose(`[interrupt] Pausing session ${sessionKey} after ${evt.stream} ${phase}`);
         }
       })

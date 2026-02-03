@@ -1,5 +1,8 @@
 // Interrupt state management
-// Global state for tracking interrupt signals across sessions
+// Simple global state for tracking interrupt signals
+
+import { logVerbose } from "../globals.js";
+import type { OpenClawConfig } from "../config/config.js";
 
 export type InterruptStatus = {
   pending: boolean;
@@ -7,63 +10,71 @@ export type InterruptStatus = {
   sessionKey: string | null;
 };
 
-// Global state for the current session's interrupt
+// Global state - one interrupt at a time per session
 let currentSessionKey: string | null = null;
 let interruptPending = false;
 let interruptReason: string | null = null;
-let lastActivityTime = Date.now();
 
-export function getCurrentSessionKey(): string | null {
-  return currentSessionKey;
+function isTruthyEnvValue(value: string | undefined): boolean {
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
 }
 
-export function setInterrupt(sessionKey: string, reason: string): void {
+export function isInterruptEnabled(cfg?: OpenClawConfig): boolean {
+  if (cfg?.agents?.defaults?.interrupt?.enabled !== undefined) {
+    return cfg.agents.defaults.interrupt.enabled;
+  }
+  const envValue = process.env.OPENCLAW_INTERRUPT_ENABLED;
+  if (envValue !== undefined) {
+    return isTruthyEnvValue(envValue);
+  }
+  return true; // Default: enabled
+}
+
+/** Signal an interrupt from an incoming message */
+export function signalInterrupt(
+  sessionKey: string,
+  reason: string,
+  cfg: OpenClawConfig
+): void {
+  if (!isInterruptEnabled(cfg)) {
+    return;
+  }
+  if (reason.startsWith("Read HEARTBEAT.md")) {
+    return; // Skip heartbeats
+  }
+
   interruptPending = true;
   interruptReason = reason;
   currentSessionKey = sessionKey;
-  lastActivityTime = Date.now();
+  logVerbose(`[interrupt] Signal queued for session ${sessionKey}: ${reason.slice(0, 100)}`);
 }
 
+/** Check if there's a pending interrupt for this session */
 export function checkInterrupt(sessionKey: string): InterruptStatus {
-  // Only report interrupt if it's for this session
-  if (interruptPending && currentSessionKey === sessionKey) {
-    return {
-      pending: true,
-      reason: interruptReason,
-      sessionKey,
-    };
-  }
-
+  const pending = interruptPending && currentSessionKey === sessionKey;
   return {
-    pending: false,
-    reason: null,
+    pending,
+    reason: pending ? interruptReason : null,
     sessionKey,
   };
 }
 
-export function clearInterrupt(): void {
-  interruptPending = false;
-  interruptReason = null;
-  // Keep currentSessionKey for context
+/** Clear the interrupt for this session (only if it matches) */
+export function clearInterrupt(sessionKey: string): void {
+  if (interruptPending && currentSessionKey === sessionKey) {
+    interruptPending = false;
+    interruptReason = null;
+    // Keep currentSessionKey for context until a new interrupt arrives
+  }
 }
 
-export function resetInterruptState(): void {
-  interruptPending = false;
-  interruptReason = null;
-  currentSessionKey = null;
-  lastActivityTime = Date.now();
-}
-
-export function getInterruptState(): {
-  pending: boolean;
-  currentSession: string | null;
-  reason: string | null;
-  idleMs: number;
-} {
-  return {
-    pending: interruptPending,
-    currentSession: currentSessionKey,
-    reason: interruptReason,
-    idleMs: Date.now() - lastActivityTime,
-  };
+/** Check and clear in one operation - use this in agent runner */
+export function checkAndClearInterrupt(sessionKey: string): boolean {
+  if (interruptPending && currentSessionKey === sessionKey) {
+    interruptPending = false;
+    interruptReason = null;
+    return true;
+  }
+  return false;
 }
