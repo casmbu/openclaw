@@ -1,23 +1,21 @@
 #!/bin/bash
 # Discord Message Handler for Interrupts
-# Called when message content matches interrupt patterns
-# Usage: interrupt-discord-handler.sh "message content"
+# ANY incoming message triggers a pause - not just stop words
+# Usage: interrupt-discord-handler.sh "message content" [source]
 
 MESSAGE="${1:-}"
+SOURCE="${2:-discord}"
 DAEMON="$(dirname "$0")/interrupt-daemon.sh"
 
-# Normalize message for matching
-LOWER_MSG=$(echo "$MESSAGE" | tr '[:upper:]' '[:lower:]')
+# Skip if no message
+[ -z "$MESSAGE" ] && exit 0
 
-# Check for interrupt triggers
-case "$LOWER_MSG" in
-  *"stop"*|*"interrupt"*|*"halt"*|*"pause"*)
-    if [ -x "$DAEMON" ]; then
-      # Use full message as reason
-      [ -z "$MESSAGE" ] && MESSAGE="User requested stop via Discord"
-      
-      "$DAEMON" signal "$MESSAGE"
-      echo "Interrupt queued. Current action will complete, then I'll pause."
-    fi
-    ;;
-esac
+# Skip heartbeat polls - they're automated, not user interruptions
+if [[ "$MESSAGE" =~ ^Read\ HEARTBEAT\.md ]]; then
+  exit 0
+fi
+
+# All other messages interrupt current work
+if [ -x "$DAEMON" ]; then
+  "$DAEMON" signal "$MESSAGE from $SOURCE"
+fi

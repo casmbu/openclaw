@@ -1,58 +1,62 @@
 # Interrupt Mechanism
 
-**Status:** Implemented and committed
-**Commit:** 8a2eb7760 (casmbu/openclaw fork)
+**Status:** Implemented and committed  
+**Location:** `openclaw-fork/scripts/interrupt-*`  
+**Commits:** 8a2eb7760, 272549687
 
-## How It Works
+## How It Works (Updated 2026-02-03)
 
-Simple pattern matching + file-based signal:
+**Any incoming message** pauses my current work — not just stop words.
 
-1. **You send:** `STOP`, `INTERRUPT`, `HALT`, or `PAUSE` in Discord  
-2. **I detect:** Message handler triggers interrupt signal
-3. **I queue:** Signal stored in `~/.openclaw/interrupts/pending`
-4. **I check:** Between each tool call, I poll for interrupt
-5. **I pause:** Current action completes gracefully, then I stop and wait
+1. **You send:** Any message (question, suggestion, quick task)  
+2. **I detect:** Message handler triggers interrupt signal  
+3. **I queue:** Signal stored in `~/.openclaw/interrupts/pending`  
+4. **I check:** Between each tool call, I poll for interrupt  
+5. **I pause:** Current action completes gracefully, then I stop and wait  
+6. **I resume:** After handling your request, I offer to continue
 
 ## Components
 
-- `interrupt-daemon.sh` - File-based signal queue (arm/check/clear)
-- `interrupt-discord-handler.sh` - Watches Discord for trigger words
-- `interrupt-check.ts` - Agent-side polling module
+| File | Purpose |
+|------|---------|
+| `interrupt-daemon.sh` | File-based signal queue (arm/check/clear) |
+| `interrupt-discord-handler.sh` | **Any** message triggers interrupt (not just stop words) |
+| `interrupt-check.ts` | Agent-side polling module |
+| `README-interrupt.md` | This documentation |
+
+## Code Locations
+
+- **Daemon:** `/home/huxley/openclaw-fork/scripts/interrupt-daemon.sh`
+- **Handler:** `/home/huxley/openclaw-fork/scripts/interrupt-discord-handler.sh`
+- **Agent check:** `/home/huxley/openclaw-fork/scripts/interrupt-check.ts`
+- **Docs:** `/home/huxley/openclaw-fork/scripts/README-interrupt.md`
 
 ## Usage Examples
 
-**You:**
-```
-STOP
-```
+**You:** `Hey what's the weather like?`  
+**Me:** [completes current action] → [answers weather] → *"Shall I keep going with [X]?"*
 
-**Me:** `Completing current build...` *(finishes gracefully)*  
-**Me:** `Interrupted. Current action complete. Ready for next instruction.`  
+**You:** `Actually use a bullet list there instead`  
+**Me:** [makes change] → *"Keep going with the rest?"*
 
-**You:**
-```
-Let's try a different approach
-```
-
-**Me:** Proceeds with new direction
+**You:** `Add a Trello card: research docker alternatives`  
+**Me:** [adds card] → [automatically resumes what I was doing]
 
 ## Integration Notes
 
-To fully wire this up, the Discord channel handler needs to call:
+Discord channel handler calls on every message:
 ```bash
-scripts/interrupt-discord-handler.sh "$message_content"
+scripts/interrupt-discord-handler.sh "$message_content" "discord"
 ```
 
-And the agent needs to call between actions:
+Agent polls between actions:
 ```typescript
 if (checkForInterrupt()) {
   await waitForInterruptResolution();
 }
 ```
 
-For now, it's implemented as standalone scripts ready for integration.
-
-## Design Rationale
+## Design Principles
 
 Following "simple is better":
 - No complex message bus
@@ -60,4 +64,4 @@ Following "simple is better":
 - No state management complexity
 - Just files and polling
 
-Works with existing OpenClaw architecture without deep core changes.
+**Update (2026-02-03):** Now triggers on any message for natural conversation flow.

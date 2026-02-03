@@ -11,6 +11,7 @@ import {
   type ReplyDispatcherOptions,
   type ReplyDispatcherWithTypingOptions,
 } from "./reply/reply-dispatcher.js";
+import { signalInterrupt } from "../interrupt/index.js";
 
 export type DispatchInboundResult = DispatchFromConfigResult;
 
@@ -21,6 +22,27 @@ export async function dispatchInboundMessage(params: {
   replyOptions?: Omit<GetReplyOptions, "onToolResult" | "onBlockReply">;
   replyResolver?: typeof import("./reply.js").getReplyFromConfig;
 }): Promise<DispatchInboundResult> {
+  // Signal interrupt for ANY incoming message (from any source)
+  // This pauses any ongoing work in the same session
+  const body =
+    typeof params.ctx.Body === "string"
+      ? params.ctx.Body
+      : typeof params.ctx.RawBody === "string"
+        ? params.ctx.RawBody
+        : "";
+  signalInterrupt(
+    params.ctx.SessionKey ?? "unknown",
+    body,
+    {
+      SenderId: params.ctx.SenderId,
+      SenderName: params.ctx.SenderName,
+      SenderUsername: params.ctx.SenderUsername,
+      From: params.ctx.From,
+      MessageSource: (params.ctx as { MessageSource?: string }).MessageSource,
+    },
+    params.cfg
+  );
+
   const finalized = finalizeInboundContext(params.ctx);
   return await dispatchReplyFromConfig({
     ctx: finalized,

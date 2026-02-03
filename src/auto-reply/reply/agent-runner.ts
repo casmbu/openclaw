@@ -19,7 +19,8 @@ import {
   updateSessionStoreEntry,
 } from "../../config/sessions.js";
 import { emitDiagnosticEvent, isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
-import { defaultRuntime } from "../../runtime.js";
+import { onAgentEvent } from "../../infra/agent-events.js";
+import { defaultRuntime, logVerbose } from "../../runtime.js";
 import { estimateUsageCost, resolveModelCostConfig } from "../../utils/usage-format.js";
 import { resolveResponseUsageMode, type VerboseLevel } from "../thinking.js";
 import { runAgentTurnWithFallback } from "./agent-runner-execution.js";
@@ -41,6 +42,7 @@ import { createReplyToModeFilterForChannel, resolveReplyToMode } from "./reply-t
 import { incrementCompactionCount } from "./session-updates.js";
 import { persistSessionUsageUpdate } from "./session-usage.js";
 import { createTypingSignaler } from "./typing-mode.js";
+import { checkInterruptAndPause } from "../../interrupt/index.js";
 
 const BLOCK_REPLY_SEND_TIMEOUT_MS = 15_000;
 
@@ -198,6 +200,22 @@ export async function runReplyAgent(params: {
   }
 
   await typingSignals.signalRunStart();
+
+  // Register interrupt listener to check between tool calls
+  const stopInterruptListener = sessionKey
+    ? onAgentEvent((evt) => {
+        // Check for interrupt between tool calls (after tool completion)
+        if (evt.stream === "tool" && evt.sessionKey === sessionKey) {
+          const phase = typeof evt.data.phase === "string" ? evt.data.phase : "";
+          if (phase === "end" || phase === "error") {
+            if (checkInterruptAndPause(sessionKey)) {
+              // Interrupt detected - will be handled at the next pause point
+              logVerbose(`[interrupt] Pausing session ${sessionKey} after tool completion`);
+            }
+          }
+        }
+      })
+    : () => {}; // No-op if no session key
 
   activeSessionEntry = await runMemoryFlushIfNeeded({
     cfg,
@@ -521,5 +539,7 @@ export async function runReplyAgent(params: {
   } finally {
     blockReplyPipeline?.stop();
     typing.markRunComplete();
+    // Cleanup interrupt listener
+    stopInterruptListener();
   }
 }
