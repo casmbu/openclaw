@@ -3,7 +3,7 @@
 # Sets a cron job to start production version after 10 minutes as fallback
 
 RESCUE_DELAY_MINUTES=10
-CRON_COMMENT="# HUXLEY_RESCUE_JOB"
+CRON_COMMENT="# OPENCLAW_RESCUE_JOB"
 
 echo "Enabling self-rescue fallback (will trigger in $RESCUE_DELAY_MINUTES minutes)..."
 

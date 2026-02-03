@@ -2,7 +2,7 @@
 # Self-rescue: Check on startup, runs from dev branch
 # Verifies dev is healthy and disables rescue cron, OR detects rescue was triggered
 
-CRON_COMMENT="# HUXLEY_RESCUE_JOB"
+CRON_COMMENT="# OPENCLAW_RESCUE_JOB"
 MARKER_FILE="$HOME/.openclaw/expected-gateway.txt"
 RESCUE_LOG="$HOME/.openclaw/rescue-events.log"
 
