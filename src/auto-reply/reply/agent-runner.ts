@@ -20,7 +20,8 @@ import {
 } from "../../config/sessions.js";
 import { emitDiagnosticEvent, isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
 import { onAgentEvent } from "../../infra/agent-events.js";
-import { defaultRuntime, logVerbose } from "../../runtime.js";
+import { logVerbose } from "../../globals.js";
+import { defaultRuntime } from "../../runtime.js";
 import { estimateUsageCost, resolveModelCostConfig } from "../../utils/usage-format.js";
 import { resolveResponseUsageMode, type VerboseLevel } from "../thinking.js";
 import { runAgentTurnWithFallback } from "./agent-runner-execution.js";

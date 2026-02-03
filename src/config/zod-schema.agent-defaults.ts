@@ -122,6 +122,14 @@ export const AgentDefaultsSchema = z
     blockStreamingChunk: BlockStreamingChunkSchema.optional(),
     blockStreamingCoalesce: BlockStreamingCoalesceSchema.optional(),
     humanDelay: HumanDelaySchema.optional(),
+    identity: z
+      .object({
+        name: z.string().optional().describe("Bot name for self-message detection"),
+        aliases: z.array(z.string()).optional().describe("Alternative names/aliases"),
+      })
+      .strict()
+      .optional()
+      .describe("Bot identity configuration for self-message detection"),
     autoResume: z
       .boolean()
       .optional()
