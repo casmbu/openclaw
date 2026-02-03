@@ -4,12 +4,15 @@
 import { logVerbose } from "../globals.js";
 import { isTruthyEnvValue } from "../infra/env.js";
 import type { OpenClawConfig } from "../config/config.js";
+import { normalizeMainKey } from "../routing/session-key.js";
 
 export type InterruptStatus = {
   pending: boolean;
   reason: string | null;
   sessionKey: string | null;
 };
+
+type SessionKind = "main" | "group" | "cron" | "hook" | "node" | "other";
 
 type InterruptState = {
   pending: boolean;
@@ -19,6 +22,41 @@ type InterruptState = {
 
 // Per-session interrupt state - supports concurrent sessions
 const interruptStates = new Map<string, InterruptState>();
+
+// Session kinds that should NOT be interrupted (automated/system sessions)
+const NON_INTERRUPTABLE_KINDS: SessionKind[] = ["cron", "hook", "node", "other"];
+
+function getSessionKind(sessionKey: string, cfg: OpenClawConfig): SessionKind {
+  const mainKey = normalizeMainKey(cfg.session?.mainKey);
+  
+  // Check for main session
+  if (sessionKey === mainKey || sessionKey === "main") {
+    return "main";
+  }
+  
+  // Check for cron/hook/node (automated sessions)
+  if (sessionKey.startsWith("cron:")) {
+    return "cron";
+  }
+  if (sessionKey.startsWith("hook:")) {
+    return "hook";
+  }
+  if (sessionKey.startsWith("node-") || sessionKey.startsWith("node:")) {
+    return "node";
+  }
+  
+  // Check for group sessions
+  if (sessionKey.includes(":group:") || sessionKey.includes(":channel:")) {
+    return "group";
+  }
+  
+  return "other";
+}
+
+function isInterruptableSession(sessionKey: string, cfg: OpenClawConfig): boolean {
+  const kind = getSessionKind(sessionKey, cfg);
+  return !NON_INTERRUPTABLE_KINDS.includes(kind);
+}
 
 export function isInterruptEnabled(cfg?: OpenClawConfig): boolean {
   if (cfg?.agents?.defaults?.interrupt?.enabled !== undefined) {
@@ -35,18 +73,14 @@ export function isInterruptEnabled(cfg?: OpenClawConfig): boolean {
 export function signalInterrupt(
   sessionKey: string,
   reason: string,
-  cfg: OpenClawConfig,
-  opts?: {
-    isHeartbeat?: boolean;
-    isAutomated?: boolean;
-  }
+  cfg: OpenClawConfig
 ): void {
   if (!isInterruptEnabled(cfg)) {
     return;
   }
 
-  // Skip automated messages (heartbeats, cron jobs, etc.)
-  if (opts?.isHeartbeat || opts?.isAutomated) {
+  // Skip non-interruptable session kinds (cron, hook, node, other)
+  if (!isInterruptableSession(sessionKey, cfg)) {
     return;
   }
 
