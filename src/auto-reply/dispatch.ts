@@ -22,7 +22,7 @@ export async function dispatchInboundMessage(params: {
   replyOptions?: Omit<GetReplyOptions, "onToolResult" | "onBlockReply">;
   replyResolver?: typeof import("./reply.js").getReplyFromConfig;
 }): Promise<DispatchInboundResult> {
-  // Signal interrupt for interruptable session kinds (main, group)
+  // Signal interrupt for interruptable session kinds (main, group), skipping heartbeats
   const body =
     typeof params.ctx.Body === "string"
       ? params.ctx.Body
@@ -32,7 +32,8 @@ export async function dispatchInboundMessage(params: {
   signalInterrupt(
     params.ctx.SessionKey ?? "unknown",
     body,
-    params.cfg
+    params.cfg,
+    params.replyOptions?.isHeartbeat
   );
 
   const finalized = finalizeInboundContext(params.ctx);
