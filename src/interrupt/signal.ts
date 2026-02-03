@@ -29,12 +29,6 @@ export function isInterruptEnabled(cfg?: OpenClawConfig): boolean {
 export function signalInterrupt(
   sessionKey: string,
   reason: string,
-  _ctx: {
-    SenderId?: string;
-    SenderName?: string;
-    SenderUsername?: string;
-    From?: string;
-  },
   cfg: OpenClawConfig
 ): void {
   // Skip if interrupt functionality is disabled
@@ -46,12 +40,6 @@ export function signalInterrupt(
   if (reason.startsWith("Read HEARTBEAT.md")) {
     return;
   }
-
-  // Note: Self-messages are already filtered upstream by each channel:
-  // - Discord: preflightDiscordMessage filters botUserId
-  // - Slack: prepare.ts filters botUserId
-  // - Signal: event-handler filters E164 match
-  // - iMessage: filtered by allowlist policy
 
   setInterrupt(sessionKey, reason);
   logVerbose(`[interrupt] Signal queued for session ${sessionKey}: ${reason.slice(0, 100)}`);

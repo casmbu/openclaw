@@ -33,7 +33,6 @@ export async function dispatchInboundMessage(params: {
   signalInterrupt(
     params.ctx.SessionKey ?? "unknown",
     body,
-    {}, // Self-messages filtered upstream by each channel
     params.cfg
   );
 
