@@ -49,6 +49,12 @@ import {
   emitAgentEvent,
   registerAgentRunContext,
 } from "../infra/agent-events.js";
+import {
+  clearInProgressSentinel,
+  isAutoResumeEnabled,
+  writeInProgressSentinel,
+  type AutoResumeSessionState,
+} from "../infra/auto-resume.js";
 import { getRemoteSkillEligibility } from "../infra/skills-remote.js";
 import { normalizeAgentId } from "../routing/session-key.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
@@ -379,6 +385,25 @@ export async function agentCommand(
     let result: Awaited<ReturnType<typeof runEmbeddedPiAgent>>;
     let fallbackProvider = provider;
     let fallbackModel = model;
+
+    // Auto-resume: write sentinel if enabled
+    const autoResumeEnabled = isAutoResumeEnabled(cfg);
+    const autoResumeState =
+      autoResumeEnabled && sessionKey
+        ? ({
+            sessionKey,
+            userPrompt: body,
+            runId,
+            timestamp: startedAt,
+            wasStreaming: true, // Default to true for most interactive sessions
+            provider,
+            model,
+          } satisfies AutoResumeSessionState)
+        : null;
+    if (autoResumeState) {
+      await writeInProgressSentinel(autoResumeState);
+    }
+
     try {
       const runContext = resolveAgentRunContext(opts);
       const messageChannel = resolveMessageChannel(
@@ -525,5 +550,11 @@ export async function agentCommand(
     });
   } finally {
     clearAgentRunContext(runId);
+    // Auto-resume: clear sentinel
+    if (sessionKey) {
+      await clearInProgressSentinel(sessionKey).catch(() => {
+        // Silently ignore sentinel clear failures
+      });
+    }
   }
 }
