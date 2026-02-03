@@ -2,6 +2,7 @@
 // Simple global state for tracking interrupt signals
 
 import { logVerbose } from "../globals.js";
+import { isTruthyEnvValue } from "../infra/env.js";
 import type { OpenClawConfig } from "../config/config.js";
 
 export type InterruptStatus = {
@@ -14,11 +15,6 @@ export type InterruptStatus = {
 let currentSessionKey: string | null = null;
 let interruptPending = false;
 let interruptReason: string | null = null;
-
-function isTruthyEnvValue(value: string | undefined): boolean {
-  if (!value) return false;
-  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
-}
 
 export function isInterruptEnabled(cfg?: OpenClawConfig): boolean {
   if (cfg?.agents?.defaults?.interrupt?.enabled !== undefined) {
