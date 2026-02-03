@@ -1,5 +1,5 @@
 // Interrupt Service - Simple pause mechanism for OpenClaw
-// Any message triggers a pause (self-messages filtered upstream by channels)
+// Manual messages trigger a pause; automated ones (heartbeats, cron) are skipped
 
 export {
   type InterruptStatus,
@@ -8,4 +8,5 @@ export {
   checkInterrupt,
   clearInterrupt,
   checkAndClearInterrupt,
+  cleanupOldInterrupts,
 } from "./state.js";

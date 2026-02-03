@@ -1,5 +1,5 @@
 // Interrupt state management
-// Simple global state for tracking interrupt signals
+// Per-session state for tracking interrupt signals (supports concurrent sessions)
 
 import { logVerbose } from "../globals.js";
 import { isTruthyEnvValue } from "../infra/env.js";
@@ -11,10 +11,14 @@ export type InterruptStatus = {
   sessionKey: string | null;
 };
 
-// Global state - one interrupt at a time per session
-let currentSessionKey: string | null = null;
-let interruptPending = false;
-let interruptReason: string | null = null;
+type InterruptState = {
+  pending: boolean;
+  reason: string;
+  timestamp: number;
+};
+
+// Per-session interrupt state - supports concurrent sessions
+const interruptStates = new Map<string, InterruptState>();
 
 export function isInterruptEnabled(cfg?: OpenClawConfig): boolean {
   if (cfg?.agents?.defaults?.interrupt?.enabled !== undefined) {
@@ -31,46 +35,60 @@ export function isInterruptEnabled(cfg?: OpenClawConfig): boolean {
 export function signalInterrupt(
   sessionKey: string,
   reason: string,
-  cfg: OpenClawConfig
+  cfg: OpenClawConfig,
+  opts?: {
+    isHeartbeat?: boolean;
+    isAutomated?: boolean;
+  }
 ): void {
   if (!isInterruptEnabled(cfg)) {
     return;
   }
-  if (reason.startsWith("Read HEARTBEAT.md")) {
-    return; // Skip heartbeats
+
+  // Skip automated messages (heartbeats, cron jobs, etc.)
+  if (opts?.isHeartbeat || opts?.isAutomated) {
+    return;
   }
 
-  interruptPending = true;
-  interruptReason = reason;
-  currentSessionKey = sessionKey;
+  interruptStates.set(sessionKey, {
+    pending: true,
+    reason,
+    timestamp: Date.now(),
+  });
   logVerbose(`[interrupt] Signal queued for session ${sessionKey}: ${reason.slice(0, 100)}`);
 }
 
 /** Check if there's a pending interrupt for this session */
 export function checkInterrupt(sessionKey: string): InterruptStatus {
-  const pending = interruptPending && currentSessionKey === sessionKey;
+  const state = interruptStates.get(sessionKey);
   return {
-    pending,
-    reason: pending ? interruptReason : null,
+    pending: state?.pending ?? false,
+    reason: state?.reason ?? null,
     sessionKey,
   };
 }
 
-/** Clear the interrupt for this session (only if it matches) */
+/** Clear the interrupt for this session */
 export function clearInterrupt(sessionKey: string): void {
-  if (interruptPending && currentSessionKey === sessionKey) {
-    interruptPending = false;
-    interruptReason = null;
-    // Keep currentSessionKey for context until a new interrupt arrives
-  }
+  interruptStates.delete(sessionKey);
 }
 
 /** Check and clear in one operation - use this in agent runner */
 export function checkAndClearInterrupt(sessionKey: string): boolean {
-  if (interruptPending && currentSessionKey === sessionKey) {
-    interruptPending = false;
-    interruptReason = null;
+  const state = interruptStates.get(sessionKey);
+  if (state?.pending) {
+    interruptStates.delete(sessionKey);
     return true;
   }
   return false;
+}
+
+/** Clean up old interrupts (call periodically to prevent memory leak) */
+export function cleanupOldInterrupts(maxAgeMs: number = 5 * 60 * 1000): void {
+  const now = Date.now();
+  for (const [sessionKey, state] of interruptStates.entries()) {
+    if (now - state.timestamp > maxAgeMs) {
+      interruptStates.delete(sessionKey);
+    }
+  }
 }

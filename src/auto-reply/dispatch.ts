@@ -22,8 +22,7 @@ export async function dispatchInboundMessage(params: {
   replyOptions?: Omit<GetReplyOptions, "onToolResult" | "onBlockReply">;
   replyResolver?: typeof import("./reply.js").getReplyFromConfig;
 }): Promise<DispatchInboundResult> {
-  // Signal interrupt for ANY incoming message (from any source)
-  // This pauses any ongoing work in the same session
+  // Signal interrupt for any manual (non-automated) incoming message
   const body =
     typeof params.ctx.Body === "string"
       ? params.ctx.Body
@@ -33,7 +32,11 @@ export async function dispatchInboundMessage(params: {
   signalInterrupt(
     params.ctx.SessionKey ?? "unknown",
     body,
-    params.cfg
+    params.cfg,
+    {
+      isHeartbeat: params.replyOptions?.isHeartbeat,
+      // TODO: Add isAutomated flag for cron jobs when cron dispatch is implemented
+    }
   );
 
   const finalized = finalizeInboundContext(params.ctx);
