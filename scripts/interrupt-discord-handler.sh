@@ -13,11 +13,10 @@ LOWER_MSG=$(echo "$MESSAGE" | tr '[:upper:]' '[:lower:]')
 case "$LOWER_MSG" in
   *"stop"*|*"interrupt"*|*"halt"*|*"pause"*)
     if [ -x "$DAEMON" ]; then
-      # Extract reason - everything after the trigger word
-      REASON=$(echo "$MESSAGE" | sed -E 's/.*(stop|interrupt|halt|pause)//i')
-      [ -z "$REASON" ] && REASON="User requested stop via Discord"
+      # Use full message as reason
+      [ -z "$MESSAGE" ] && MESSAGE="User requested stop via Discord"
       
-      "$DAEMON" signal "$REASON"
+      "$DAEMON" signal "$MESSAGE"
       echo "Interrupt queued. Current action will complete, then I'll pause."
     fi
     ;;

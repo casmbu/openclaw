@@ -25,9 +25,9 @@ case "${1:-}" in
       CONTENT=$(cat "$INTERRUPT_FILE")
       echo "$(date): Interrupt detected - $CONTENT" >> "$LOG_FILE"
       cat "$INTERRUPT_FILE"
-      return 0
+      exit 0
     fi
-    return 1
+    exit 1
     ;;
     
   clear)
