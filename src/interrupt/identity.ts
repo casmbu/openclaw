@@ -37,10 +37,12 @@ export function isSelfMessage(
     SenderName?: string;
     SenderUsername?: string;
     From?: string;
-    MessageSource?: string;
   },
   cfg: OpenClawConfig
 ): boolean {
+  // Discord filters self-messages upstream in preflight
+  // This is a safety net for other channels (Signal, CLI, etc.)
+  
   // Rebuild cache if needed (lazy initialization)
   if (botIdCache.size === 0 && cfg) {
     initializeBotIdentityCache(cfg);
@@ -49,24 +51,12 @@ export function isSelfMessage(
   const senderId = ctx.SenderId?.toLowerCase() ?? "";
   const senderName = ctx.SenderName?.toLowerCase() ?? "";
   const senderUsername = ctx.SenderUsername?.toLowerCase() ?? "";
-  const from = ctx.From?.toLowerCase() ?? "";
-  const messageSource = ctx.MessageSource?.toLowerCase() ?? "";
 
   // Check against cached bot identities
   for (const botId of botIdCache) {
     if (senderId.includes(botId) || senderName.includes(botId) || senderUsername.includes(botId)) {
       return true;
     }
-  }
-
-  // Check for programmatic/internal message markers
-  if (messageSource === "internal" || messageSource === "system") {
-    return true;
-  }
-
-  // Check for self-referential patterns common in follow-up chains
-  if (senderId === "system" || senderId === from) {
-    return true;
   }
 
   return false;

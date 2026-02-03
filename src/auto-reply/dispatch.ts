@@ -38,7 +38,6 @@ export async function dispatchInboundMessage(params: {
       SenderName: params.ctx.SenderName,
       SenderUsername: params.ctx.SenderUsername,
       From: params.ctx.From,
-      MessageSource: (params.ctx as { MessageSource?: string }).MessageSource,
     },
     params.cfg
   );
