@@ -202,19 +202,18 @@ export async function runReplyAgent(params: {
 
   await typingSignals.signalRunStart();
 
-  // Register interrupt listener to check after any activity completes
-  // This covers: internal monologue, tool calls, compaction, assistant messages
+  // Register interrupt listener to check after terminal activity completes
+  // Triggers on: tool end, lifecycle end, compaction end (streams with phases)
   const stopInterruptListener = sessionKey
     ? onAgentEvent((evt) => {
-        // Only check on terminal events (end/error phases), not mid-activity
-        const phase = typeof evt.data.phase === "string" ? evt.data.phase : "";
-        const isTerminalPhase = phase === "end" || phase === "error" || phase === "complete";
+        // Only streams with phases have clear "end" points
+        if (evt.sessionKey !== sessionKey) return;
         
-        // Check for any session-matching event that's at a pause point
-        if (evt.sessionKey === sessionKey && isTerminalPhase) {
-          if (checkInterruptAndPause(sessionKey)) {
-            logVerbose(`[interrupt] Pausing session ${sessionKey} after ${evt.stream} ${phase}`);
-          }
+        const phase = evt.data?.phase;
+        const isTerminalPhase = phase === "end" || phase === "error";
+        
+        if (isTerminalPhase && checkInterruptAndPause(sessionKey)) {
+          logVerbose(`[interrupt] Pausing session ${sessionKey} after ${evt.stream} ${phase}`);
         }
       })
     : () => {}; // No-op if no session key
