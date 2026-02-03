@@ -91,13 +91,6 @@ export type CliBackendConfig = {
   serialize?: boolean;
 };
 
-export type AgentIdentityConfig = {
-  /** Bot name for self-message detection. */
-  name?: string;
-  /** Alternative names/aliases for self-message detection. */
-  aliases?: string[];
-};
-
 export type AgentDefaultsConfig = {
   /** Primary model and fallbacks (provider/model). */
   model?: AgentModelListConfig;
@@ -162,8 +155,11 @@ export type AgentDefaultsConfig = {
   blockStreamingCoalesce?: BlockStreamingCoalesceConfig;
   /** Human-like delay between block replies. */
   humanDelay?: HumanDelayConfig;
-  /** Bot identity configuration for self-message detection. */
-  identity?: AgentIdentityConfig;
+  /** Interrupt mechanism - pause on any incoming message. */
+  interrupt?: {
+    /** Enable interrupt functionality (default: true). */
+    enabled?: boolean;
+  };
   /** Auto-resume interrupted conversations after gateway restart (development/testing feature). */
   autoResume?: boolean;
   timeoutSeconds?: number;

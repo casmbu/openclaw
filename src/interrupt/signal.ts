@@ -3,31 +3,42 @@
 
 import { logVerbose } from "../globals.js";
 import type { OpenClawConfig } from "../config/config.js";
-import { initializeBotIdentityCache, isSelfMessage } from "./identity.js";
 import { setInterrupt, checkInterrupt as checkStateInterrupt, clearInterrupt as clearStateInterrupt } from "./state.js";
 
 export type { InterruptStatus } from "./state.js";
 
+function isTruthyEnvValue(value: string | undefined): boolean {
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
+export function isInterruptEnabled(cfg?: OpenClawConfig): boolean {
+  // Prefer config value if set
+  if (cfg?.agents?.defaults?.interrupt?.enabled !== undefined) {
+    return cfg.agents.defaults.interrupt.enabled;
+  }
+  // Fall back to environment variable
+  const envValue = process.env.OPENCLAW_INTERRUPT_ENABLED;
+  if (envValue !== undefined) {
+    return isTruthyEnvValue(envValue);
+  }
+  // Default: enabled
+  return true;
+}
+
 export function signalInterrupt(
   sessionKey: string,
   reason: string,
-  ctx: {
+  _ctx: {
     SenderId?: string;
     SenderName?: string;
     SenderUsername?: string;
     From?: string;
-    MessageSource?: string;
   },
   cfg: OpenClawConfig
 ): void {
-  // Initialize identity cache if needed
-  if (cfg) {
-    initializeBotIdentityCache(cfg);
-  }
-
-  // Skip self-messages (my own follow-up chains)
-  if (isSelfMessage(ctx, cfg)) {
-    logVerbose(`[interrupt] Skipping self-message in session ${sessionKey}`);
+  // Skip if interrupt functionality is disabled
+  if (!isInterruptEnabled(cfg)) {
     return;
   }
 
@@ -35,6 +46,12 @@ export function signalInterrupt(
   if (reason.startsWith("Read HEARTBEAT.md")) {
     return;
   }
+
+  // Note: Self-messages are already filtered upstream by each channel:
+  // - Discord: preflightDiscordMessage filters botUserId
+  // - Slack: prepare.ts filters botUserId
+  // - Signal: event-handler filters E164 match
+  // - iMessage: filtered by allowlist policy
 
   setInterrupt(sessionKey, reason);
   logVerbose(`[interrupt] Signal queued for session ${sessionKey}: ${reason.slice(0, 100)}`);

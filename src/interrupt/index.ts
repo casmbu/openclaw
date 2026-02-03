@@ -1,5 +1,5 @@
 // Interrupt Service - Integrated pause mechanism for OpenClaw
-// Any message from any source (except self-messages) triggers a pause
+// Any message from any source triggers a pause (except self-messages, which are filtered upstream)
 
 // State management
 export {
@@ -10,11 +10,9 @@ export {
   getInterruptState,
 } from "./state.js";
 
-// Identity detection for self-message filtering
-export { initializeBotIdentityCache, isSelfMessage } from "./identity.js";
-
 // Signal and check functions
 export {
   signalInterrupt,
   checkInterruptAndPause,
+  isInterruptEnabled,
 } from "./signal.js";

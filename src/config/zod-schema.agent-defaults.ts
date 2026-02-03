@@ -122,14 +122,13 @@ export const AgentDefaultsSchema = z
     blockStreamingChunk: BlockStreamingChunkSchema.optional(),
     blockStreamingCoalesce: BlockStreamingCoalesceSchema.optional(),
     humanDelay: HumanDelaySchema.optional(),
-    identity: z
+    interrupt: z
       .object({
-        name: z.string().optional().describe("Bot name for self-message detection"),
-        aliases: z.array(z.string()).optional().describe("Alternative names/aliases"),
+        enabled: z.boolean().optional().describe("Enable interrupt functionality (default: true)"),
       })
       .strict()
       .optional()
-      .describe("Bot identity configuration for self-message detection"),
+      .describe("Interrupt mechanism - pause on any incoming message"),
     autoResume: z
       .boolean()
       .optional()
