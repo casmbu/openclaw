@@ -1,31 +1,44 @@
 // Natural Conversation - System Prompt Loader
-// Loads INTERRUPT.md from workspace and makes it available to agent
+// Loads INTERRUPT.md from workspace or falls back to template
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { logVerbose } from "../globals.js";
 import type { OpenClawConfig } from "../config/config.js";
-import { NATURAL_CONVERSATION_PROMPT as DEFAULT_PROMPT } from "./default-prompt.js";
 
 const INTERRUPT_FILE = "INTERRUPT.md";
 
+// Get the directory of this module to find the template
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const TEMPLATE_PATH = path.resolve(__dirname, "../../docs/reference/templates/INTERRUPT.md");
+
 /**
- * Load the interrupt handling guide from workspace
- * Falls back to default if not present
+ * Load the interrupt handling guide
+ * Priority: 1) User's workspace, 2) Built-in template
  */
 export async function loadInterruptPrompt(
   cfg: OpenClawConfig
 ): Promise<string> {
   const workspace = cfg.agents?.defaults?.workspace || "/home/huxley/.openclaw/workspace";
-  const filePath = path.join(workspace, INTERRUPT_FILE);
+  const userFilePath = path.join(workspace, INTERRUPT_FILE);
 
+  // Try user's workspace first
   try {
-    const content = await fs.readFile(filePath, "utf-8");
-    logVerbose(`[natural-conversation] Loaded custom INTERRUPT.md from ${filePath}`);
+    const content = await fs.readFile(userFilePath, "utf-8");
+    logVerbose(`[natural-conversation] Loaded custom INTERRUPT.md from ${userFilePath}`);
     return content;
   } catch {
-    logVerbose(`[natural-conversation] No custom INTERRUPT.md found, using default`);
-    return DEFAULT_PROMPT;
+    // Fall back to built-in template
+    try {
+      const content = await fs.readFile(TEMPLATE_PATH, "utf-8");
+      logVerbose(`[natural-conversation] Loaded default INTERRUPT.md template`);
+      return content;
+    } catch (err) {
+      logVerbose(`[natural-conversation] Failed to load INTERRUPT.md: ${String(err)}`);
+      // Ultimate fallback - minimal guidance
+      return "## Natural Conversation\n\nWhen interrupted while working:\n- Answer quick questions, then continue\n- Apply corrections seamlessly\n- Consider alternatives, adopt if better\n- For new priorities, pause and ask about resuming";
+    }
   }
 }
 
